@@ -1,1 +1,1 @@
-# TODO: Export agent entry points after the shared contract is agreed.
+"""Specialist agent modules called by the shared coordinator."""

@@ -1,6 +1,6 @@
-# L3B Architecture Record
+﻿# L3B Architecture Record
 
-> **Trạng thái: thiết kế đề xuất để cả 4 người review trước khi viết logic nghiệp vụ.** Khung `agents/`, `agent_contracts.py` và các file test đã được tạo với nội dung TODO; chưa có logic agent. Khi nhóm thay đổi quyết định hoặc triển khai xong, cập nhật tài liệu theo code thực tế. Không ghi prompt bí mật, chain-of-thought hoặc API key.
+> **Trạng thái: đã triển khai theo thiết kế.** Bốn module agent, hợp đồng bàn giao, Coordinator, verifier, cache evidence theo case và CLI chạy/đóng gói đã có trong code. Nhóm vẫn cần review nghiệp vụ và điều chỉnh khi có kết quả chấm thực tế. Không ghi prompt bí mật, chain-of-thought hoặc API key.
 
 Xem [PHAN_CONG_CONG_VIEC.md](PHAN_CONG_CONG_VIEC.md) để biết người sở hữu từng module, đầu việc và thứ tự bàn giao.
 
@@ -49,9 +49,9 @@ Sau khi chốt hợp đồng chung, bốn module được phát triển **song s
 | `AgentResult` | `case_id`, `actor`, `status`, `findings`, `evidence_refs`, `confidence`, `unresolved`, `errors` | Result không được đổi `case_id`; refs là chuỗi do MCP cấp; lỗi có cấu trúc |
 | `VerificationResult` | `case_id`, `passed`, `issues` | Mỗi issue nêu field, lý do, module cần sửa; không âm thầm vá dữ liệu |
 
-Tên trường và kiểu cụ thể trong code phải được cả bốn người chốt trước khi viết module. Message envelope dùng trong tiến trình Python qua Coordinator; không cần giả định có A2A server ngoài repo. Coordinator là nơi duy nhất tạo task cho agent khác, kiểm tra result, phát `task_assigned`/`handoff` và ngăn vòng lặp bàn giao. Mỗi module phải chạy được với task mẫu và gateway giả lập khi module khác chưa hoàn thành.
+Tên trường và kiểu cụ thể đã được mã hóa trong `agent_contracts.py`. Message envelope dùng trong tiến trình Python qua Coordinator; không cần giả định có A2A server ngoài repo. Coordinator là nơi duy nhất tạo task cho agent khác, kiểm tra result, phát `task_assigned`/`handoff` và ngăn vòng lặp bàn giao. Khi thay đổi hợp đồng, cả bốn người cần review trước khi gộp.
 
-Entity resolver kiểm tra `claimed_order_id`, candidate và customer hint với evidence; ghi candidate được nhận, bị loại và confidence. Nếu `ambiguous`/`not_found`, Coordinator không tự chọn order. Cả nhóm cần chốt ngưỡng confidence và số bước xác minh tối đa trước khi code; chưa có ngưỡng nào được định nghĩa trong contract công khai.
+Entity resolver kiểm tra `claimed_order_id`, candidate và customer hint với evidence; ghi candidate được nhận, bị loại và confidence. Khi cùng một order ID xuất hiện ở nhiều thời kỳ, nó chọn bản ghi mua hàng phù hợp với thời điểm mở case và bàn giao mốc mua kế tiếp để các agent khác lọc dữ liệu. Nếu `not_found`, Coordinator không tự chọn order. Confidence hiện là mức heuristic trong từng module, chưa phải xác suất đã hiệu chuẩn từ tập chấm công khai.
 
 ## 4. Evidence và conflict lifecycle
 
@@ -71,7 +71,9 @@ Entity resolver kiểm tra `claimed_order_id`, candidate và customer hint với
 | Specialist result sai hợp đồng | Coordinator từ chối result và trả issue cho module sở hữu | Trace handoff/lỗi quan sát được; giới hạn vòng sửa |
 | Verifier từ chối draft | Sửa đúng module/field liên quan, chạy lại kiểm tra | Không finalize output chưa được kiểm chứng |
 
-Cả nhóm phải chốt **con số cụ thể** cho query budget, retry và vòng sửa trước khi code; scoring policy chỉ nêu call budget theo case là private, không công bố một mức cố định. Mọi MCP call được server audit và có thể ảnh hưởng điểm efficiency, kể cả call không xuất hiện trong output. Cache phải giới hạn trong case và truy vấn không được quét rộng theo mặc định.
+`CaseEvidenceGateway` có cache và bộ đếm theo case; quyền tool được giới hạn theo từng actor. Chưa đặt trần call cứng vì scoring policy giữ kín mức tối ưu; các nhánh chỉ gọi tool cần cho topic và scope. `run_submission.cmd` chạy 2 case song song, mở lại kết nối MCP sau mỗi nhóm 16 case và ghi output/trace ngay khi từng case xong. Lượt đầu chạy mới; chỉ retry trong cùng lượt mới dùng `--resume`. Resume kiểm tra fingerprint của input, endpoint và Team API Key để chặn việc trộn ref giữa hai ngữ cảnh. Mọi MCP call được server audit và có thể ảnh hưởng điểm efficiency, kể cả call không xuất hiện trong output.
+
+Với `valid_split_payment`, `payment_mismatch` và `duplicate_charge`, payment agent đối chiếu thêm dòng thanh toán từ `get_order_payments` với capture trong `get_payment_timeline`. Ba nhóm này tăng một MCP call mỗi case; các topic khác giữ nguyên số call để giới hạn ảnh hưởng tới điểm hiệu quả.
 
 ## 6. Verification invariants
 
@@ -85,5 +87,5 @@ Hàm verifier nằm cùng module do Người 4 sở hữu để giữ đúng b�
 
 - Dùng Python >= 3.11 và dependency trong `pyproject.toml`. Ghi cấu hình model (nếu dùng), giới hạn đồng thời, random seed (nếu có), retry/query budget và lệnh chạy thực tế; không ghi secret.
 - Trước khi gộp, mỗi người bàn giao module, test với gateway/task giả lập, result mẫu, danh sách MCP domain cần dùng và các tình huống chưa xử lý.
-- Sau khi gộp, chạy `day09 validate-inputs`, `pytest -q`, `day09 run`, `day09 validate`, rồi `day09 package --output dist/submission.zip`; kiểm tra đủ 100 case và ZIP chỉ chứa manifest, trace, outputs.
+- Sau khi gộp, chạy `day09 validate-inputs`, `pytest -q`, `day09 run`, `day09 validate`, rồi `day09 package --output dist/submission-v3.zip`; kiểm tra đủ 100 case và ZIP chỉ chứa manifest, trace, outputs.
 - Cập nhật bảng và các quyết định ở tài liệu này nếu code cuối cùng khác thiết kế đề xuất. Thay đổi hợp đồng task/result phải được cả nhóm review trước khi sửa module phụ thuộc.

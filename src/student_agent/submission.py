@@ -65,6 +65,8 @@ def validate_artifacts(
         raise ValueError("traces/trace.jsonl is missing or not UTF-8") from exc
     normalized_lines: list[str] = []
     seen_events: set[str] = set()
+    trace_types: dict[str, set[str]] = {case_id: set() for case_id in expected}
+    consumed_refs: dict[str, set[str]] = {case_id: set() for case_id in expected}
     for number, line in enumerate(trace_lines, 1):
         if not line.strip():
             continue
@@ -78,7 +80,25 @@ def validate_artifacts(
         if event["event_id"] in seen_events:
             raise ValueError(f"traces/trace.jsonl:{number}: duplicate event_id")
         seen_events.add(event["event_id"])
+        trace_types[event["case_id"]].add(event["event_type"])
+        if event["event_type"] == "tool_result_consumed":
+            consumed_refs[event["case_id"]].update(event.get("evidence_refs", []))
         normalized_lines.append(json.dumps(event, ensure_ascii=False, separators=(",", ":")))
+
+    required_events = {
+        "case_received",
+        "task_assigned",
+        "handoff",
+        "tool_result_consumed",
+        "verification_completed",
+        "case_finalized",
+    }
+    for case_id, output in outputs.items():
+        missing_events = required_events - trace_types[case_id]
+        if missing_events:
+            raise ValueError(f"{case_id}: trace is missing {sorted(missing_events)}")
+        if not set(output.get("evidence_refs", [])).issubset(consumed_refs[case_id]):
+            raise ValueError(f"{case_id}: output contains refs absent from consumed MCP evidence")
 
     serialized = [json.dumps(value, ensure_ascii=False) for value in outputs.values()]
     if SECRET_PATTERN.search("\n".join([*serialized, *normalized_lines])):

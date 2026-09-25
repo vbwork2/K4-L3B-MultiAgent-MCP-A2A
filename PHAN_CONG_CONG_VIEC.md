@@ -1,6 +1,6 @@
-# Thống nhất chung và phân công công việc nhóm 4 người — L3B Multi-Agent MCP + A2A
+﻿# Thống nhất chung và phân công công việc nhóm 4 người — L3B Multi-Agent MCP + A2A
 
-> Tài liệu triển khai cho nhóm 4 người. Điền tên thật vào bảng phân công trước khi bắt đầu. **Mỗi người sở hữu một module agent riêng**, phát triển và kiểm thử độc lập, sau đó mới ghép vào `solve_case()`. Repo hiện là starter kit: `solve_case()` chưa được triển khai, nên đây là thiết kế và việc cần làm, không phải chức năng đã hoàn thành.
+> Tài liệu triển khai cho nhóm 4 người. Điền tên thật vào bảng phân công trước khi bắt đầu. **Mỗi người sở hữu một module agent riêng**, phát triển và kiểm thử độc lập, sau đó mới ghép vào `solve_case()`. Bốn module và `solve_case()` đã có bản triển khai; đây là phân công để mỗi người kiểm thử, review và tiếp tục cải tiến phần mình sở hữu.
 
 ## 1. Thống nhất chung — đọc trước khi chia việc
 
@@ -9,7 +9,7 @@
 - Xây dựng luồng điều tra khiếu nại thương mại điện tử cho **L3B**, xử lý đủ 100 case trong `case-set.json` và `inputs/`.
 - Với mỗi case, xác định đúng đơn hàng và các thực thể liên quan; kiểm tra lịch sử khách hàng, sản phẩm, vận chuyển, thanh toán, hoàn tiền và chính sách; giải quyết mâu thuẫn nguồn; đưa ra kết luận và hành động dựa trên bằng chứng.
 - Hệ thống phải thể hiện sự phối hợp giữa các agent bằng trace có thể quan sát, đồng thời tiết kiệm số lần gọi MCP. Không cần một framework multi-agent cụ thể; cần luồng bàn giao và kết quả đúng.
-- Đầu ra cuối cùng là `outputs/<case_id>.json` cho từng case, `traces/trace.jsonl` và gói `dist/submission.zip`. Không sửa ý nghĩa của các schema trong `contracts/`.
+- Đầu ra cuối cùng là `outputs/<case_id>.json` cho từng case, `traces/trace.jsonl` và gói `dist/submission-v3.zip`. Không sửa ý nghĩa của các schema trong `contracts/`.
 
 ### 1.2. Chốt kiến trúc trước khi chia code
 
@@ -30,7 +30,7 @@ CLI -> workflow.py (Coordinator/điểm ghép)
 Các module dùng chung EvidenceGateway, TraceWriter và agent_contracts.py.
 ```
 
-`agents/` và `agent_contracts.py` đã có dưới dạng **file TODO**, chưa có logic. Bốn module tương ứng bốn người; `workflow.py` chỉ điều phối, ghép kết quả và không chứa lại logic chuyên môn của từng module. MCP tool là công cụ **gateway cung cấp**, không phải bốn tool mà nhóm phải tự viết. Mỗi người chịu trách nhiệm một module gọi **nhóm MCP tool thuộc miền dữ liệu của mình** sau khi tool discovery.
+`agents/` và `agent_contracts.py` đã được triển khai. Bốn module tương ứng bốn người; `workflow.py` chỉ điều phối, ghép kết quả và không chứa lại logic chuyên môn của từng module. MCP tool là công cụ **gateway cung cấp**, không phải bốn tool mà nhóm phải tự viết. Mỗi người chịu trách nhiệm một module gọi **nhóm MCP tool thuộc miền dữ liệu của mình** sau khi tool discovery.
 
 Trước khi bắt đầu code, cả nhóm thống nhất và ghi rõ sáu quyết định sau:
 
@@ -83,7 +83,7 @@ Input case
 - Mỗi module có **một người chịu trách nhiệm chính** và **một người review**. Chốt `agent_contracts.py` trước; không cùng sửa `workflow.py` trong giai đoạn phát triển riêng. Mỗi người có thể chạy test module với gateway giả lập và task/result mẫu theo hợp đồng đã chốt.
 - Khi thay đổi code, comment bằng **tiếng Anh dễ hiểu**, không dùng icon trong code. Không commit `.env`, Team API Key, input thi đấu, output, trace, ZIP hoặc log. Giữ nguyên tên repo khi fork theo README.
 - Thử trên các case có tình huống khác nhau: sai candidate, nhiều claim, giao chậm do seller/logistics, split payment, refund, bằng chứng thiếu hoặc xung đột. Test phải kiểm tra quy tắc nghiệp vụ và bàn giao, không chỉ lặp lại logic implementation.
-- Hoàn thành toàn nhóm khi: `day09 validate-inputs` xác nhận đủ 100 input; `day09 run` tạo đủ 100 output; `day09 validate` pass; `day09 package --output dist/submission.zip` tạo ZIP đúng cấu trúc; nhóm kiểm tra thủ công một số case và cập nhật `ARCHITECTURE.md` theo thiết kế thực tế.
+- Hoàn thành toàn nhóm khi: `day09 validate-inputs` xác nhận đủ 100 input; `day09 run` tạo đủ 100 output; `day09 validate` pass; `day09 package --output dist/submission-v3.zip` tạo ZIP đúng cấu trúc; nhóm kiểm tra thủ công một số case và cập nhật `ARCHITECTURE.md` theo thiết kế thực tế.
 - Ưu tiên xử lý các lỗi có thể làm case nhận 0 điểm: sai `case_id`, output không chấm được theo schema, thiếu bằng chứng bắt buộc, `evidence_ref` không tồn tại hoặc không thuộc đúng team/run/case. Sau đó tối ưu semantic, evidence, consistency, calibration, workflow và efficiency.
 
 ## 2. Bảng phân công tổng quan
@@ -163,7 +163,7 @@ Input case
 6. Emit `verification_completed` trước khi Người 1 finalize; nếu fail, trả lỗi có cấu trúc cho agent sở hữu phần đó sửa, có giới hạn vòng lặp. Không tự thay dữ liệu sai bằng một giá trị hợp schema nhưng không có evidence.
 7. Viết test module độc lập bằng ba `AgentResult` mẫu: nguồn đồng thuận, nguồn mâu thuẫn, không có policy evidence, refund đã thực hiện, draft có sai scope/ref/tổng tiền. Module phải chạy được khi ba module còn lại chưa hoàn thành.
 8. **Sau khi tích hợp:** chạy `pytest -q`, `day09 validate`, rà soát trace; cập nhật `ARCHITECTURE.md` theo thiết kế thực tế (ownership, A2A, evidence/conflict, failure/efficiency, verification, reproducibility).
-9. Chạy `day09 package --output dist/submission.zip`; kiểm tra ZIP chỉ gồm `manifest.json`, `trace.jsonl`, `outputs/<case_id>.json`. Sau khi cả nhóm duyệt, thực hiện bước upload/chọn bản final trên workspace.
+9. Chạy `day09 package --output dist/submission-v3.zip`; kiểm tra ZIP chỉ gồm `manifest.json`, `trace.jsonl`, `outputs/<case_id>.json`. Sau khi cả nhóm duyệt, thực hiện bước upload/chọn bản final trên workspace.
 
 **Bàn giao độc lập:** module policy/decision/verifier, test và hướng dẫn hai điểm gọi của module. **Bàn giao sau khi gộp:** kiến trúc cập nhật, báo cáo validate và ZIP. **Xong khi:** module tự kiểm tra được draft mẫu; sau tích hợp không còn lỗi hard gate đã biết, đủ 100 output/trace hợp lệ.
 
@@ -194,12 +194,12 @@ Input case
 | --- | --- |
 | `README.md` | Hướng dẫn cuộc thi, cách chạy và nộp bài |
 | `ARCHITECTURE.md` | Chốt kiến trúc mục tiêu trước khi code; cập nhật lại theo quyết định thực tế |
-| `src/student_agent/agent_contracts.py` | File TODO cho hợp đồng task/result chung; Người 1 triển khai sau khi thống nhất kiến trúc |
-| `src/student_agent/agents/` | Bốn file module agent TODO; mỗi người sở hữu một module |
-| `tests/test_agent_contracts.py` | File TODO cho test hợp đồng chung |
-| `tests/test_entity_customer.py`, `tests/test_order_fulfillment.py`, `tests/test_payment_refund.py`, `tests/test_policy_verifier.py` | File TODO cho test độc lập của bốn module |
-| `tests/test_workflow_integration.py` | File TODO cho test tích hợp sau khi gộp |
-| `src/student_agent/workflow.py` | Điểm tích hợp `solve_case()`; hiện chưa triển khai |
+| `src/student_agent/agent_contracts.py` | Hợp đồng task/result chung đã triển khai; Người 1 sở hữu và bảo trì |
+| `src/student_agent/agents/` | Bốn module agent đã triển khai; mỗi người sở hữu một module |
+| `tests/test_agent_contracts.py` | Test hợp đồng chung đã triển khai |
+| `tests/test_entity_customer.py`, `tests/test_order_fulfillment.py`, `tests/test_payment_refund.py`, `tests/test_policy_verifier.py` | Test độc lập của bốn module đã triển khai với fake gateway |
+| `tests/test_workflow_integration.py` | Test tích hợp đã triển khai |
+| `src/student_agent/workflow.py` | Điểm tích hợp `solve_case()` đã triển khai |
 | `src/student_agent/mcp_gateway.py` | Kết nối MCP, khám phá tool và validate response |
 | `src/student_agent/trace.py` | Ghi sự kiện trace theo schema |
 | `src/student_agent/cli.py` | Chạy toàn bộ case, validate và gọi các bước CLI |
@@ -209,7 +209,7 @@ Input case
 
 ## 6. Cây file làm việc đã tạo
 
-Các file agent và test bên dưới hiện chỉ có TODO. `workflow.py` là file starter đã có và vẫn chưa triển khai.
+Các file agent và `workflow.py` đã triển khai. Bốn người tiếp tục dùng checklist này để review chéo và cải thiện kết quả chấm.
 
 ```text
 src/student_agent/

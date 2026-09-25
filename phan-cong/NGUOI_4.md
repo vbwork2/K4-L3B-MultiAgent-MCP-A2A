@@ -1,6 +1,6 @@
-# Người 4 — Policy, conflict và verifier
+﻿# Người 4 — Policy, conflict và verifier
 
-> Thành viên: _Điền tên_. Người review: Người 2. Các file module/test đã được tạo dưới dạng TODO; logic vẫn cần triển khai. Tài liệu chung của nhóm: [PHAN_CONG_CONG_VIEC.md](../PHAN_CONG_CONG_VIEC.md) và [ARCHITECTURE.md](../ARCHITECTURE.md).
+> Thành viên: _Điền tên_. Người review: Người 2. Module đã có bản triển khai chung trong repo; người phụ trách tiếp tục kiểm thử nghiệp vụ, review chéo và cải tiến theo kết quả chấm. Tài liệu chung của nhóm: [PHAN_CONG_CONG_VIEC.md](../PHAN_CONG_CONG_VIEC.md) và [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## A. Thống nhất chung cho cả bốn người
 
@@ -9,7 +9,7 @@
 - Bài toán là điều tra 100 case L3B bằng multi-agent, MCP evidence và trace A2A; kết quả cuối gồm 100 output JSON, trace JSONL và ZIP nộp bài.
 - Trước khi viết logic, cả nhóm review và chốt ARCHITECTURE.md: ranh giới bốn module, AgentTask/AgentResult, quyền MCP theo miền, thứ tự gọi, cách ghi trace, xử lý lỗi và verifier.
 - Người 1 tạo hợp đồng chung trong src/student_agent/agent_contracts.py sau khi chốt. Ngay khi hợp đồng và task/result mẫu đã được cả nhóm review, **cả bốn người bắt đầu module song song**; không chờ module khác hoàn thành. Người 2/3 dùng entity result mẫu, Người 4 dùng ba result mẫu để tự test. Người 1 ghép trong src/student_agent/workflow.py sau khi bốn module bàn giao.
-- Bốn file module đã có trong src/student_agent/agents/: entity_customer.py, order_fulfillment.py, payment_refund.py, policy_verifier.py. Nội dung hiện chỉ là TODO; người phụ trách triển khai sau khi chốt hợp đồng chung.
+- Bốn file module đã có trong src/student_agent/agents/: entity_customer.py, order_fulfillment.py, payment_refund.py, policy_verifier.py. Mỗi người sở hữu một module để kiểm thử và cải tiến độc lập trên hợp đồng chung.
 
 ### A2. Hợp đồng bàn giao giữa các module
 
@@ -30,7 +30,7 @@
 ### A4. Điều kiện chung để gộp và nộp
 
 - Mỗi người bàn giao module, test với gateway/task giả lập, result mẫu, các miền MCP cần dùng và giới hạn đã biết. Người review kiểm tra **song song với quá trình hoàn thiện module** và chốt các lỗi giao diện trước khi gộp; review không phải bước chặn để ba người khác bắt đầu làm.
-- Sau khi gộp: chạy day09 validate-inputs, python -m pytest -q, day09 run, day09 validate và day09 package --output dist/submission.zip; kiểm tra đủ 100 case và ZIP đúng cấu trúc.
+- Sau khi gộp: chạy day09 validate-inputs, python -m pytest -q, day09 run, day09 validate và day09 package --output dist/submission-v3.zip; kiểm tra đủ 100 case và ZIP đúng cấu trúc.
 - Ưu tiên tránh hard gate: sai case_id, schema không chấm được, thiếu evidence bắt buộc, ref không tồn tại hoặc sai team/run/case. Cập nhật ARCHITECTURE.md khi thiết kế thực tế thay đổi.
 
 ## B. Phần việc riêng của Người 4
@@ -59,7 +59,7 @@
 6. Viết verifier kiểm tra schema, case_id, entity scope, rejected candidates, evidence refs, claim linkage, timeline, payment/refund totals, refund lines, source precedence, trách nhiệm/action và confidence. Trả issue có cấu trúc, không tự sửa dữ liệu không có evidence.
 7. Emit policy_decided khi thật sự ra quyết định và verification_completed khi thật sự kiểm chứng. Nếu verify fail, trả lỗi cho Coordinator để giao đúng module sửa với số vòng hữu hạn.
 8. Test module với ba AgentResult mẫu và draft mẫu: nguồn đồng thuận, nguồn mâu thuẫn, thiếu policy evidence, refund đã thực hiện, ref sai case, tổng tiền sai và action mâu thuẫn.
-9. Sau khi gộp, chạy test/validate trên case đại diện và đủ 100 case, review trace; cập nhật ARCHITECTURE.md theo code thực tế và tạo dist/submission.zip. Nhóm cùng duyệt trước khi chọn bản nộp cuối.
+9. Sau khi gộp, chạy test/validate trên case đại diện và đủ 100 case, review trace; cập nhật ARCHITECTURE.md theo code thực tế và tạo dist/submission-v3.zip. Nhóm cùng duyệt trước khi chọn bản nộp cuối.
 
 ### B4. Bàn giao và tự kiểm tra
 
