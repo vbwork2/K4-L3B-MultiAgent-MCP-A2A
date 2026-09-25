@@ -33,7 +33,7 @@ ACTOR_TOOLS = {
         {"get_order_items", "get_shipment_summary", "get_product_context", "get_sellers"}
     ),
     "payment-refund": frozenset(
-        {"get_payment_timeline", "get_order_payments", "get_refund_timeline"}
+        {"get_payment_timeline", "get_refund_timeline"}
     ),
     "policy-verifier": frozenset({"get_policy"}),
 }

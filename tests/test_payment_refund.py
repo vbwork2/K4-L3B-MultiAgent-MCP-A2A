@@ -38,14 +38,6 @@ def test_two_valid_captures_are_a_reconciled_split_payment() -> None:
                 },
                 "payment",
             ),
-            "get_order_payments": evidence(
-                "payment",
-                [
-                    {"payment_value": 40, "payment_sequential": 1, "payment_type": "voucher"},
-                    {"payment_value": 50, "payment_sequential": 2, "payment_type": "credit_card"},
-                ],
-                "basepayments",
-            ),
         }
     )
     fulfillment = AgentResult(
@@ -70,4 +62,4 @@ def test_two_valid_captures_are_a_reconciled_split_payment() -> None:
     assert result.findings["payment_analysis"]["captured_total_brl"] == 90.0
     assert result.findings["payment_analysis"]["verdict"] == "reconciled"
     assert result.findings["split_payment"] is True
-    assert gateway.calls == ["get_payment_timeline", "get_order_payments"]
+    assert gateway.calls == ["get_payment_timeline"]

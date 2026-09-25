@@ -57,7 +57,15 @@ async def investigate(
     ]
     selected: dict[str, Any] | None = None
     if past:
-        selected = max(past, key=_purchase_key)
+        topic = task.questions[0] if task.questions else ""
+        expected_status = {
+            "canceled_order_paid": "canceled",
+            "unavailable_order_paid": "unavailable",
+        }.get(topic)
+        status_matches = [
+            row for row in past if expected_status and row.get("order_status") == expected_status
+        ]
+        selected = max(status_matches or past, key=_purchase_key)
     elif matching:
         selected = min(matching, key=_purchase_key)
         unresolved.append("No candidate purchase preceded the case opening time")

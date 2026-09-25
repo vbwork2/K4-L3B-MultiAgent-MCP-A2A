@@ -1,4 +1,4 @@
-﻿# K4 L3B — Multi-Agent MCP + A2A
+# K4 L3B — Multi-Agent MCP + A2A
 
 ## Chạy trên Windows CMD để tạo ZIP nộp bài
 
@@ -16,7 +16,7 @@ copy .env.example .env
 .\run_submission.cmd
 ```
 
-Script kiểm tra input, chạy mới toàn bộ case qua MCP, kiểm tra output/trace và tạo `dist\submission-v3.zip`. Lượt đầu luôn tạo evidence mới; nếu kết nối MCP gián đoạn, script tự tiếp tục tối đa năm lượt bằng `--resume`. Các ZIP cũ trong `dist\` được giữ lại. Nếu script hết lượt thử và bạn vẫn dùng cùng case-set và Team API Key, chạy `.\run_submission.cmd resume` để tiếp tục. Khi case-set hoặc Team API Key đổi, hãy chạy lại không có tham số để tránh dùng evidence ref cũ. ZIP chỉ chứa `manifest.json`, `trace.jsonl` và 100 file `outputs/<case_id>.json` để tải lên trang chấm. Bốn module agent và hợp đồng phối hợp nằm trong [ARCHITECTURE.md](ARCHITECTURE.md); phân công nhóm nằm trong [PHAN_CONG_CONG_VIEC.md](PHAN_CONG_CONG_VIEC.md).
+Script kiểm tra input, chạy mới toàn bộ case qua MCP, kiểm tra output/trace và tạo `dist\submission-v5.zip`. Lượt đầu luôn tạo evidence mới; nếu kết nối MCP gián đoạn, script tự tiếp tục tối đa năm lượt bằng `--resume`. Các ZIP cũ trong `dist\` được giữ lại. Nếu script hết lượt thử và bạn vẫn dùng cùng case-set và Team API Key, chạy `.\run_submission.cmd resume` để tiếp tục. Khi case-set hoặc Team API Key đổi, hãy chạy lại không có tham số để tránh dùng evidence ref cũ. ZIP chỉ chứa `manifest.json`, `trace.jsonl` và 100 file `outputs/<case_id>.json` để tải lên trang chấm. Bốn module agent và hợp đồng phối hợp nằm trong [ARCHITECTURE.md](ARCHITECTURE.md); phân công nhóm nằm trong [PHAN_CONG_CONG_VIEC.md](PHAN_CONG_CONG_VIEC.md).
 
 ## Mục tiêu
 
@@ -181,7 +181,7 @@ Nếu output pass schema nhưng điểm thấp, cần kiểm tra semantic, entit
 ## 7. Đóng gói và nộp bài
 
 ```bash
-day09 package --output dist/submission-v3.zip
+day09 package --output dist/submission-v5.zip
 ```
 
 ZIP chỉ được chứa:
@@ -192,7 +192,7 @@ trace.jsonl
 outputs/<case_id>.json
 ```
 
-Không đưa source, input, `.env`, API key hoặc debug log vào ZIP. Sau đó upload `dist/submission-v3.zip` tại workspace `/l3b` và chọn submission muốn dùng làm final.
+Không đưa source, input, `.env`, API key hoặc debug log vào ZIP. Sau đó upload `dist/submission-v5.zip` tại workspace `/l3b` và chọn submission muốn dùng làm final.
 
 ## Tiêu chí chấm điểm công khai
 

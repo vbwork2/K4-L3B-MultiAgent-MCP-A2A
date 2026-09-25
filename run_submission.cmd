@@ -31,8 +31,8 @@ if errorlevel 1 (
 "%PYTHON_EXE%" -m student_agent.cli validate
 if errorlevel 1 exit /b 1
 
-"%PYTHON_EXE%" -m student_agent.cli package --output dist/submission-v3.zip
+"%PYTHON_EXE%" -m student_agent.cli package --output dist/submission-v5.zip
 if errorlevel 1 exit /b 1
 
-echo Submission ready: dist\submission-v3.zip
+echo Submission ready: dist\submission-v5.zip
 endlocal

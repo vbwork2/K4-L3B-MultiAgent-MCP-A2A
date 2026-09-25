@@ -1,4 +1,4 @@
-﻿# L3B Architecture Record
+# L3B Architecture Record
 
 > **Trạng thái: đã triển khai theo thiết kế.** Bốn module agent, hợp đồng bàn giao, Coordinator, verifier, cache evidence theo case và CLI chạy/đóng gói đã có trong code. Nhóm vẫn cần review nghiệp vụ và điều chỉnh khi có kết quả chấm thực tế. Không ghi prompt bí mật, chain-of-thought hoặc API key.
 
@@ -73,7 +73,9 @@ Entity resolver kiểm tra `claimed_order_id`, candidate và customer hint với
 
 `CaseEvidenceGateway` có cache và bộ đếm theo case; quyền tool được giới hạn theo từng actor. Chưa đặt trần call cứng vì scoring policy giữ kín mức tối ưu; các nhánh chỉ gọi tool cần cho topic và scope. `run_submission.cmd` chạy 2 case song song, mở lại kết nối MCP sau mỗi nhóm 16 case và ghi output/trace ngay khi từng case xong. Lượt đầu chạy mới; chỉ retry trong cùng lượt mới dùng `--resume`. Resume kiểm tra fingerprint của input, endpoint và Team API Key để chặn việc trộn ref giữa hai ngữ cảnh. Mọi MCP call được server audit và có thể ảnh hưởng điểm efficiency, kể cả call không xuất hiện trong output.
 
-Với `valid_split_payment`, `payment_mismatch` và `duplicate_charge`, payment agent đối chiếu thêm dòng thanh toán từ `get_order_payments` với capture trong `get_payment_timeline`. Ba nhóm này tăng một MCP call mỗi case; các topic khác giữ nguyên số call để giới hạn ảnh hưởng tới điểm hiệu quả.
+Payment agent đối chiếu các capture với dòng thanh toán trong `get_payment_timeline`. Thử nghiệm v3 gọi thêm `get_order_payments` cho ba nhóm payment làm điểm hiệu quả giảm mạnh nhưng evidence coverage chỉ tăng nhẹ, vì vậy v4 bỏ lời gọi này. Khi cùng một order ID có nhiều lần mua trước khi mở case, entity agent ưu tiên bản ghi lịch sử có trạng thái khớp với claim hủy đơn hoặc hết hàng nếu bản ghi đó tồn tại; các tool tiếp theo được giới hạn theo khoảng thời gian của lần mua đã chọn.
+
+Ở v5, `policy-verifier` gắn evidence cho từng claim theo sự kiện cần chứng minh: claim hoàn toàn bộ tiền nhận cả chứng cứ về nguyên nhân hoàn và về số tiền; claim có trách nhiệm seller nhận seller ref nếu đã được thu thập. Thay đổi này không phát sinh MCP call, còn output cấp case giữ toàn bộ refs đã dùng để verifier đối chiếu với trace.
 
 ## 6. Verification invariants
 
@@ -87,5 +89,5 @@ Hàm verifier nằm cùng module do Người 4 sở hữu để giữ đúng b�
 
 - Dùng Python >= 3.11 và dependency trong `pyproject.toml`. Ghi cấu hình model (nếu dùng), giới hạn đồng thời, random seed (nếu có), retry/query budget và lệnh chạy thực tế; không ghi secret.
 - Trước khi gộp, mỗi người bàn giao module, test với gateway/task giả lập, result mẫu, danh sách MCP domain cần dùng và các tình huống chưa xử lý.
-- Sau khi gộp, chạy `day09 validate-inputs`, `pytest -q`, `day09 run`, `day09 validate`, rồi `day09 package --output dist/submission-v3.zip`; kiểm tra đủ 100 case và ZIP chỉ chứa manifest, trace, outputs.
+- Sau khi gộp, chạy `day09 validate-inputs`, `pytest -q`, `day09 run`, `day09 validate`, rồi `day09 package --output dist/submission-v5.zip`; kiểm tra đủ 100 case và ZIP chỉ chứa manifest, trace, outputs.
 - Cập nhật bảng và các quyết định ở tài liệu này nếu code cuối cùng khác thiết kế đề xuất. Thay đổi hợp đồng task/result phải được cả nhóm review trước khi sửa module phụ thuộc.

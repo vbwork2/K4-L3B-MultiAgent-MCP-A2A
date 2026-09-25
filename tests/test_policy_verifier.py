@@ -6,7 +6,54 @@ import pytest
 
 from agent_fakes import FakeGateway, FakeTrace, evidence, task
 from student_agent.agent_contracts import AgentResult
-from student_agent.agents.policy_verifier import investigate
+from student_agent.agents.policy_verifier import _claim_refs, investigate
+
+
+@pytest.mark.parametrize(
+    ("primary_topic", "expected_domains"),
+    [
+        (
+            "late_delivery_logistics",
+            {"customer", "order", "item", "shipment", "payment", "policy"},
+        ),
+        (
+            "late_delivery_seller",
+            {"customer", "order", "item", "shipment", "seller", "payment", "policy"},
+        ),
+        (
+            "canceled_order_paid",
+            {"customer", "order", "item", "shipment", "payment", "policy"},
+        ),
+    ],
+)
+def test_full_refund_links_causal_and_amount_evidence(
+    primary_topic: str, expected_domains: set[str]
+) -> None:
+    domains = {
+        f"ev_{domain.ljust(24, '0')}": domain
+        for domain in (
+            "customer",
+            "order",
+            "item",
+            "shipment",
+            "seller",
+            "product",
+            "payment",
+            "policy",
+        )
+    }
+    results = (
+        AgentResult(
+            case_id="CASE_001",
+            actor="entity-customer",
+            status="completed",
+            findings={},
+            evidence_refs=tuple(domains),
+        ),
+    )
+    refs = _claim_refs("requested_full_refund", primary_topic, results, [], domains)
+
+    assert {domains[ref] for ref in refs} == expected_domains
 
 
 @pytest.mark.parametrize(

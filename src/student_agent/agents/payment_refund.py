@@ -64,20 +64,6 @@ async def investigate(
         unresolved.append("Payment timeline was unavailable from MCP")
 
     primary_topic = task.questions[0] if task.questions else ""
-    independent_payments: list[Mapping[str, Any]] = []
-    if primary_topic in {"valid_split_payment", "payment_mismatch", "duplicate_charge"}:
-        try:
-            order_payments = await consume(
-                task, gateway, trace, "get_order_payments", order_id=order_id
-            )
-            refs.append(order_payments["evidence_ref"])
-            rows = order_payments.get("data")
-            if isinstance(rows, list):
-                independent_payments = [row for row in rows if isinstance(row, Mapping)]
-            elif isinstance(rows, Mapping) and isinstance(rows.get("payments"), list):
-                independent_payments = [row for row in rows["payments"] if isinstance(row, Mapping)]
-        except RuntimeError:
-            unresolved.append("Independent order payments were unavailable from MCP")
     if primary_topic in {"refund_pending", "refund_failed"}:
         try:
             refund = await consume(task, gateway, trace, "get_refund_timeline", order_id=order_id)
@@ -121,13 +107,7 @@ async def investigate(
     has_failed = any(event.get("status") == "failed" for event in refund_events)
     has_mismatch = any(event.get("event_type") == "reconciliation_mismatch" for event in events)
     base_payments = payment_data.get("payments", [])
-    payment_rows = (
-        independent_payments
-        if independent_payments
-        else base_payments
-        if isinstance(base_payments, list)
-        else []
-    )
+    payment_rows = base_payments if isinstance(base_payments, list) else []
     capture_values = [str(amount) for amount in capture_amounts if amount is not None]
     matched_rows: list[Mapping[str, Any]] = []
     remaining = capture_values.copy()

@@ -83,18 +83,34 @@ def _conflicts(results: tuple[AgentResult, ...]) -> list[dict[str, Any]]:
 
 
 def _claim_refs(
-    topic: str, results: tuple[AgentResult, ...], policy_refs: list[str], domains: Mapping[str, str]
+    topic: str,
+    primary_topic: str,
+    results: tuple[AgentResult, ...],
+    policy_refs: list[str],
+    domains: Mapping[str, str],
 ) -> list[str]:
-    if topic.startswith("late_delivery"):
+    if topic == "requested_full_refund":
+        relevant = _claim_domains(primary_topic) | {"item", "payment", "refund", "policy"}
+    else:
+        relevant = _claim_domains(topic)
+    all_refs = [*(ref for result in results for ref in result.evidence_refs), *policy_refs]
+    return list(dict.fromkeys(ref for ref in all_refs if domains.get(ref) in relevant))[:30]
+
+
+def _claim_domains(topic: str) -> set[str]:
+    if topic == "late_delivery_seller":
+        return {"customer", "order", "item", "shipment", "seller", "policy"}
+    if topic == "late_delivery_logistics":
         relevant = {"customer", "order", "item", "shipment", "policy"}
     elif topic in {"payment_mismatch", "duplicate_charge", "valid_split_payment"}:
         relevant = {"customer", "item", "payment", "policy"}
     elif topic in {"refund_pending", "refund_failed", "requested_full_refund"}:
         relevant = {"payment", "refund", "policy", "item"}
+    elif topic == "unavailable_order_paid":
+        relevant = {"customer", "order", "shipment", "seller", "payment", "policy"}
     else:
         relevant = {"customer", "order", "shipment", "payment", "policy"}
-    all_refs = [*(ref for result in results for ref in result.evidence_refs), *policy_refs]
-    return list(dict.fromkeys(ref for ref in all_refs if domains.get(ref) in relevant))[:30]
+    return relevant
 
 
 async def investigate(
@@ -180,7 +196,7 @@ async def investigate(
         if not isinstance(claim, Mapping) or not isinstance(claim.get("claim_id"), str):
             continue
         claim_refs = _claim_refs(
-            str(claim.get("topic") or ""), prior, refs, gateway.evidence_domains
+            str(claim.get("topic") or ""), topic, prior, refs, gateway.evidence_domains
         )
         if index == 0:
             verdict = (
