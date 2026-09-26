@@ -7,6 +7,7 @@ from .agent_contracts import AgentResult, AgentTask, validate_handoff
 from .agents import entity_customer, order_fulfillment, payment_refund, policy_verifier
 from .case_evidence import CaseEvidenceGateway
 from .mcp_gateway import EvidenceGateway
+from .planner import CAPABILITY_BY_ACTOR, build_execution_plan
 from .trace import TraceWriter
 
 AgentHandler = Callable[[AgentTask, CaseEvidenceGateway, TraceWriter], Awaitable[AgentResult]]
@@ -27,15 +28,25 @@ OUTPUT_FIELD_OWNERS: dict[str, frozenset[str]] = {
     ),
 }
 OUTPUT_FIELDS = frozenset().union(*OUTPUT_FIELD_OWNERS.values())
-ACTOR_TOOLS = {
-    "entity-customer": frozenset({"get_customer_history", "get_order"}),
-    "order-fulfillment": frozenset(
-        {"get_order_items", "get_shipment_summary", "get_product_context", "get_sellers"}
-    ),
-    "payment-refund": frozenset(
-        {"get_payment_timeline", "get_refund_timeline"}
-    ),
-    "policy-verifier": frozenset({"get_policy"}),
+AGENT_MODULES: dict[str, Any] = {
+    "entity-customer": entity_customer,
+    "order-fulfillment": order_fulfillment,
+    "payment-refund": payment_refund,
+    "policy-verifier": policy_verifier,
+}
+RESULT_ALIASES = {
+    "entity-customer": "entity",
+    "order-fulfillment": "fulfillment",
+    "payment-refund": "finance",
+    "policy-verifier": "decision",
+}
+HANDOFF_FINDINGS = {
+    "entity-customer": (
+        "entity_resolution",
+        "customer_context",
+        "order_snapshot",
+        "next_purchase_at",
+    )
 }
 
 
@@ -75,6 +86,22 @@ async def _dispatch(
         attributes={"status": result.status},
     )
     return result
+
+
+def _scope_for(actor: str, results: Mapping[str, AgentResult]) -> dict[str, Any]:
+    """Build handoff scope from declared capability dependencies."""
+
+    profile = CAPABILITY_BY_ACTOR[actor]
+    scope: dict[str, Any] = {}
+    for dependency in profile.dependencies:
+        result = results.get(dependency)
+        if result is None:
+            raise ValueError(f"{actor} is missing dependency result {dependency}")
+        scope[RESULT_ALIASES[dependency]] = result
+        for field in HANDOFF_FINDINGS.get(dependency, ()):
+            if field in result.findings:
+                scope[field] = result.findings[field]
+    return scope
 
 
 def _merge_affected_entities(target: dict[str, list[str]], partial: Mapping[str, Any]) -> None:
@@ -122,73 +149,52 @@ def assemble_output(case_id: str, results: tuple[AgentResult, ...]) -> dict[str,
 async def solve_case(
     case: dict[str, Any], gateway: EvidenceGateway, trace: TraceWriter
 ) -> dict[str, Any]:
-    """Coordinate the four agents and verify the assembled output."""
+    """Plan, coordinate, assemble, and independently verify one case."""
 
     case_id = case.get("case_id")
     questions = _questions(case)
-    entity_task = AgentTask(
-        case_id=case_id,
-        sender="coordinator",
-        target="entity-customer",
-        case=case,
-        questions=questions,
-    )
+    plan = await build_execution_plan(case, gateway, OUTPUT_FIELDS)
     case_gateway = CaseEvidenceGateway(gateway, case_id)
-    available = set(await gateway.list_tools())
-    actor_gateways = {
-        actor: case_gateway.for_tools(tools & available) for actor, tools in ACTOR_TOOLS.items()
-    }
-    entity = await _dispatch(
-        entity_task, entity_customer.investigate, actor_gateways["entity-customer"], trace
-    )
+    results: dict[str, AgentResult] = {}
 
-    entity_scope = {
-        key: entity.findings[key]
-        for key in ("entity_resolution", "customer_context", "order_snapshot", "next_purchase_at")
-        if key in entity.findings
-    }
-    fulfillment_task = AgentTask(
-        case_id=case_id,
-        sender="coordinator",
-        target="order-fulfillment",
-        case=case,
-        scope=entity_scope,
-        questions=questions,
-    )
-    fulfillment = await _dispatch(
-        fulfillment_task,
-        order_fulfillment.investigate,
-        actor_gateways["order-fulfillment"],
-        trace,
-    )
+    for step in plan:
+        module = AGENT_MODULES.get(step.actor)
+        handler = getattr(module, "investigate", None) if module is not None else None
+        if not callable(handler):
+            raise ValueError(f"no handler registered for planned actor {step.actor}")
+        task = AgentTask(
+            case_id=case_id,
+            sender="coordinator",
+            target=step.actor,
+            case=case,
+            scope=_scope_for(step.actor, results),
+            questions=questions,
+        )
+        actor_gateway = case_gateway.for_tools(step.allowed_tools)
+        results[step.actor] = await _dispatch(task, handler, actor_gateway, trace)
 
-    finance_task = AgentTask(
-        case_id=case_id,
-        sender="coordinator",
-        target="payment-refund",
-        case=case,
-        scope={**entity_scope, "fulfillment": fulfillment},
-        questions=questions,
-    )
-    finance = await _dispatch(
-        finance_task, payment_refund.investigate, actor_gateways["payment-refund"], trace
-    )
+    missing = set(OUTPUT_FIELD_OWNERS) - set(results)
+    if missing:
+        raise ValueError(f"execution plan did not produce required agents: {sorted(missing)}")
+
+    ordered_results = tuple(results[actor] for actor in OUTPUT_FIELD_OWNERS)
+    draft = assemble_output(case_id, ordered_results)
 
     policy_task = AgentTask(
         case_id=case_id,
         sender="coordinator",
         target="policy-verifier",
         case=case,
-        scope={"entity": entity, "fulfillment": fulfillment, "finance": finance},
+        scope=_scope_for("policy-verifier", results),
         questions=questions,
     )
-    decision = await _dispatch(
-        policy_task, policy_verifier.investigate, actor_gateways["policy-verifier"], trace
-    )
-    results = (entity, fulfillment, finance, decision)
-    draft = assemble_output(case_id, results)
+    policy_step = next(step for step in plan if step.actor == "policy-verifier")
     verification = await policy_verifier.verify_output(
-        policy_task, draft, results, actor_gateways["policy-verifier"], trace
+        policy_task,
+        draft,
+        ordered_results,
+        case_gateway.for_tools(policy_step.allowed_tools),
+        trace,
     )
     if verification.case_id != case_id:
         raise ValueError("verification result belongs to another case")
